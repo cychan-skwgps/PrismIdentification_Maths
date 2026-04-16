@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>五年級立體圖形-角柱大挑戰</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;900&display=swap');
+        body { 
+            font-family: 'Noto Sans TC', sans-serif; 
+            touch-action: manipulation; 
+            overflow: hidden; 
+            transition: background 1s ease;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            min-height: 100vh;
+            margin: 0;
+        }
+        .btn-choice { transition: all 0.2s; border-bottom-width: 6px; }
+        .btn-choice:active { transform: translateY(2px); border-bottom-width: 2px; }
+        
+        canvas { touch-action: none; filter: drop-shadow(0 30px 60px rgba(0,0,0,0.2)); }
+
+        /* COMBO 動態效果 */
+        @keyframes combo-pop {
+            0% { transform: scale(0.8) rotate(-5deg); }
+            50% { transform: scale(1.4) rotate(5deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+        .combo-active { animation: combo-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        /* 狂熱模式震動 */
+        @keyframes fever-shake {
+            0% { transform: translate(2px, 1px) rotate(0deg); }
+            20% { transform: translate(-3px, -2px) rotate(-1deg); }
+            40% { transform: translate(-1px, 0px) rotate(1deg); }
+            60% { transform: translate(3px, 2px) rotate(0deg); }
+            80% { transform: translate(1px, -1px) rotate(1deg); }
+            100% { transform: translate(-2px, 1px) rotate(-1deg); }
+        }
+        .fever-shake-anim { animation: fever-shake 0.15s infinite; }
+
+        /* 正確與錯誤回饋 */
+        @keyframes correct-burst {
+            0% { transform: scale(0.2); opacity: 0; }
+            50% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.4); opacity: 0; }
+        }
+        .feedback-correct { animation: correct-burst 0.5s ease-out forwards; color: #10b981 !important; filter: drop-shadow(0 0 40px rgba(16, 185, 129, 0.8)) !important; }
+
+        @keyframes error-mega-shake {
+            0%, 100% { transform: scale(0.9) translateX(0); opacity: 1; }
+            10%, 30%, 50%, 70%, 90% { transform: scale(1) translateX(-20px); }
+            20%, 40%, 60%, 80% { transform: scale(1) translateX(20px); }
+            100% { transform: scale(0.4); opacity: 0; }
+        }
+        .feedback-error { animation: error-mega-shake 0.6s ease-in-out forwards; color: #ef4444 !important; filter: drop-shadow(0 0 40px rgba(239, 68, 68, 0.8)) !important; }
+
+        .bg-level-0 { background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); }
+        .bg-level-1 { background: linear-gradient(135deg, #f0f9ff 0%, #fff7ed 100%); }
+        .bg-level-2 { background: linear-gradient(135deg, #fffbeb 0%, #ffedd5 100%); }
+        .bg-level-3 { background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%); }
+        
+        .score-pop { animation: score-pop 0.3s ease-out; }
+        @keyframes score-pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
+        .heart-beat { animation: heart-beat 0.5s infinite alternate; }
+        @keyframes heart-beat { from { transform: scale(1); } to { transform: scale(1.1); } }
+    </style>
+</head>
+<body id="body-main" class="flex items-center justify-center p-4 bg-level-0">
+
+    <div id="game-container" class="bg-white/40 backdrop-blur-2xl rounded-[3rem] shadow-2xl w-full max-w-7xl aspect-video flex flex-col relative overflow-hidden border-2 border-white/50">
+        
+        <!-- 頂端整合狀態列 -->
+        <div class="h-24 w-full px-10 flex items-center justify-between bg-white/60 border-b border-white/40 z-20">
+            <!-- 左側：生命值 -->
+            <div id="hearts-container" class="flex gap-1 items-center bg-white/80 px-5 py-2 rounded-2xl shadow-sm border border-slate-100"></div>
+
+            <!-- 中央：COMBO 標籤 -->
+            <div class="flex flex-col items-center min-w-[200px]">
+                <div id="combo-tag" class="hidden flex flex-col items-center justify-center px-8 py-2 rounded-2xl transition-all duration-300">
+                    <span id="combo-text" class="text-[10px] font-black tracking-[0.3em] uppercase opacity-80 leading-none mb-1">連擊中</span>
+                    <div class="flex items-baseline gap-2">
+                        <span id="combo-count" class="text-5xl font-black italic leading-none">0</span>
+                        <span class="text-lg font-black italic">COMBO</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右側：計時與分數 -->
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-4 bg-slate-900 px-6 py-2 rounded-2xl shadow-xl border-b-4 border-slate-950">
+                    <span class="text-slate-400 font-black text-xs uppercase tracking-widest">Time</span>
+                    <p id="timer" class="text-3xl font-mono font-black text-emerald-400 min-w-[50px] text-center">45</p>
+                </div>
+                
+                <div id="score-container" class="bg-indigo-600 text-white px-6 py-2 rounded-2xl shadow-lg border-b-4 border-indigo-900 transition-transform">
+                    <span class="text-indigo-200 text-[10px] font-bold block leading-none mb-1">SCORE</span>
+                    <p id="score" class="text-3xl font-black leading-none">0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 遊戲主體區域 -->
+        <div class="flex-1 flex overflow-hidden">
+            <div class="flex-1 relative flex items-center justify-center bg-slate-50/10">
+                <canvas id="prismCanvas"></canvas>
+                <div id="feedback-layer" class="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+                    <span id="feedback-icon" class="text-[18rem] font-black opacity-0"></span>
+                </div>
+            </div>
+
+            <div class="w-[450px] h-full p-8 flex flex-col justify-center border-l border-white/40 bg-white/20">
+                <h3 class="text-slate-500 font-black text-center text-lg mb-6 uppercase tracking-widest">請點擊正確名稱</h3>
+                <div id="options-grid" class="grid grid-cols-2 grid-rows-3 gap-4 h-[70%]"></div>
+            </div>
+        </div>
+
+        <!-- 排行榜視窗 (隱藏) -->
+        <div id="rank-modal" class="hidden absolute inset-0 z-[60] flex items-center justify-center p-8 bg-slate-900/60 backdrop-blur-md">
+            <div class="bg-white rounded-[3rem] w-full max-w-lg p-10 shadow-2xl relative">
+                <button id="close-rank-btn" class="absolute top-6 right-8 text-3xl text-slate-300 hover:text-slate-500 font-black">✕</button>
+                <h2 class="text-3xl font-black text-slate-800 mb-8 flex items-center gap-3">
+                    <span class="text-4xl">🏆</span> 歷史英雄榜
+                </h2>
+                <div id="rank-list" class="space-y-3 mb-8">
+                    <!-- 排名會生成在此 -->
+                </div>
+                <button id="rank-confirm-btn" class="w-full bg-slate-100 py-4 rounded-2xl font-black text-slate-500 hover:bg-slate-200 transition-all">關閉排行榜</button>
+            </div>
+        </div>
+
+        <!-- 覆蓋層 -->
+        <div id="overlay" class="absolute inset-0 bg-white/95 z-50 flex flex-col items-center justify-center p-8 transition-all duration-700">
+            <div id="start-screen" class="max-w-2xl w-full text-center">
+                <div class="mb-4 flex justify-center">
+                    <div class="w-16 h-16 bg-indigo-600 rounded-[1.5rem] rotate-12 flex items-center justify-center shadow-2xl animate-bounce">
+                        <span class="text-3xl text-white">🧊</span>
+                    </div>
+                </div>
+                <h1 class="text-xl font-black text-slate-400 mb-1">五年級數學科</h1>
+                <h2 class="text-6xl font-black text-slate-900 mb-8 tracking-tighter">角柱<span class="text-indigo-600">大挑戰</span></h2>
+                
+                <div class="flex flex-col gap-4 mb-8">
+                    <button id="start-btn-normal" class="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-5 rounded-[2rem] text-2xl shadow-[0_8px_0_0_rgba(49,46,129,1)] active:shadow-none active:translate-y-2 transition-all">
+                        進入普通模式
+                    </button>
+                    <button id="start-btn-hard" class="bg-rose-600 hover:bg-rose-700 text-white font-black py-5 rounded-[2rem] text-2xl shadow-[0_8px_0_0_rgba(159,18,57,1)] active:shadow-none active:translate-y-2 transition-all">
+                        🔥 勇於面對困難模式
+                    </button>
+                    <button id="show-rank-btn" class="text-slate-400 font-bold hover:text-indigo-600 py-2 tracking-widest uppercase text-sm">
+                        查看歷史排行
+                    </button>
+                </div>
+                <p class="text-slate-300 font-bold tracking-widest">陳俊諺老師製作</p>
+            </div>
+
+            <div id="result-screen" class="hidden max-w-xl w-full text-center">
+                <h2 id="end-title" class="text-4xl font-black text-slate-800 mb-4 tracking-tighter">挑戰結束</h2>
+                
+                <div class="bg-slate-50 rounded-[3rem] p-6 mb-6 border-4 border-white shadow-inner flex flex-col items-center">
+                    <p class="text-slate-400 font-bold uppercase tracking-widest text-xs mb-1">Final Score</p>
+                    <div class="text-8xl font-black text-indigo-600 leading-tight mb-2" id="final-score">0</div>
+                    <div id="new-high-score-tag" class="hidden text-orange-500 font-black animate-pulse text-lg mb-4">🏆 創造了新紀錄！</div>
+                    
+                    <div id="name-input-box" class="hidden w-full flex flex-col gap-3">
+                        <p class="text-slate-500 font-bold text-sm">請輸入大名以保存至排行榜：</p>
+                        <div class="flex gap-2">
+                            <input type="text" id="player-name" maxlength="8" placeholder="輸入大名" class="flex-1 px-5 py-3 rounded-2xl border-2 border-indigo-100 outline-none focus:border-indigo-500 text-center font-black text-xl">
+                            <button id="save-score-btn" class="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black text-lg hover:bg-indigo-700 transition-colors">儲存</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <button id="restart-btn" class="bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 rounded-2xl text-xl shadow-[0_6px_0_0_rgba(6,95,70,1)] active:shadow-none active:translate-y-2 transition-all">
+                        再玩一次
+                    </button>
+                    <button id="back-to-title-btn" class="bg-slate-200 text-slate-600 font-black py-4 rounded-2xl text-xl">
+                        回到主頁
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('prismCanvas');
+        const ctx = canvas.getContext('2d');
+        const bodyMain = document.getElementById('body-main');
+        const scoreEl = document.getElementById('score');
+        const scoreContainer = document.getElementById('score-container');
+        const timerEl = document.getElementById('timer');
+        const comboTag = document.getElementById('combo-tag');
+        const comboCount = document.getElementById('combo-count');
+        const comboText = document.getElementById('combo-text');
+        const heartsContainer = document.getElementById('hearts-container');
+        const overlay = document.getElementById('overlay');
+        const startScreen = document.getElementById('start-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const rankModal = document.getElementById('rank-modal');
+        const rankList = document.getElementById('rank-list');
+        
+        let score = 0, combo = 0, timeLeft = 45, gameActive = false, timerInterval;
+        let lives = 8, currentSides = 3, currentColor = { h: 210, s: 70, l: 50 };
+        let angleX = 0.5, angleY = 0.5, angleZ = 0, rotSpeed = { x: 0.01, y: 0.01, z: 0.01 };
+        let isHardMode = false, moveTime = 0;
+
+        function initCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+
+        function rotate3D(x, y, z) {
+            let y1 = y * Math.cos(angleX) - z * Math.sin(angleX);
+            let z1 = y * Math.sin(angleX) + z * Math.cos(angleX);
+            let x2 = x * Math.cos(angleY) + z1 * Math.sin(angleY);
+            let z2 = -x * Math.sin(angleY) + z1 * Math.cos(angleY);
+            let x3 = x2 * Math.cos(angleZ) - y1 * Math.sin(angleZ);
+            let y3 = x2 * Math.sin(angleZ) + y1 * Math.cos(angleZ);
+            return { x: x3, y: y3, z: z2 };
+        }
+
+        function getShading(pts) {
+            const v1 = { x: pts[1].x - pts[0].x, y: pts[1].y - pts[0].y, z: pts[1].z - pts[0].z };
+            const v2 = { x: pts[2].x - pts[0].x, y: pts[2].y - pts[0].y, z: pts[2].z - pts[0].z };
+            const normal = { x: v1.y * v2.z - v1.z * v2.y, y: v1.z * v2.x - v1.x * v2.z, z: v1.x * v2.y - v1.y * v2.x };
+            const mag = Math.sqrt(normal.x**2 + normal.y**2 + normal.z**2);
+            if (mag === 0) return 0.5;
+            const norm = { x: normal.x / mag, y: normal.y / mag, z: normal.z / mag };
+            const lightDir = { x: 0.2, y: 0.8, z: -0.5 };
+            return (norm.x * lightDir.x + norm.y * lightDir.y + norm.z * lightDir.z + 1) / 2;
+        }
+
+        function draw() {
+            if (!gameActive) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            angleX += rotSpeed.x; angleY += rotSpeed.y; angleZ += rotSpeed.z;
+            
+            const r = 90, h = 160;
+            const topVertices = [], botVertices = [];
+            for (let i = 0; i < currentSides; i++) {
+                const a = (i / currentSides) * Math.PI * 2;
+                topVertices.push(rotate3D(Math.cos(a) * r, -h/2, Math.sin(a) * r));
+                botVertices.push(rotate3D(Math.cos(a) * r, h/2, Math.sin(a) * r));
+            }
+
+            let faces = [];
+            for (let i = 0; i < currentSides; i++) {
+                const next = (i + 1) % currentSides;
+                const facePts = [topVertices[i], topVertices[next], botVertices[next], botVertices[i]];
+                faces.push({ type: 'side', pts: facePts, z: facePts.reduce((s, p) => s + p.z, 0) / 4 });
+            }
+            faces.push({ type: 'top', pts: [...topVertices].reverse(), z: topVertices.reduce((s, p) => s + p.z, 0) / currentSides });
+            faces.push({ type: 'bot', pts: botVertices, z: botVertices.reduce((s, p) => s + p.z, 0) / currentSides });
+
+            faces.sort((a, b) => b.z - a.z);
+
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const scale = 2.2;
+            if (isHardMode) moveTime += 0.012;
+
+            faces.forEach(face => {
+                const shading = getShading(face.pts);
+                ctx.beginPath();
+                face.pts.forEach((p, i) => {
+                    let px = centerX + p.x * scale;
+                    let py = centerY + p.y * scale;
+                    if (isHardMode) { px += Math.sin(moveTime * 1.5) * 110; py += Math.cos(moveTime * 2.2) * 90; }
+                    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                });
+                ctx.closePath();
+                let l = face.type === 'top' ? 60+shading*20 : (face.type === 'bot' ? 20+shading*15 : 35+shading*35);
+                ctx.fillStyle = `hsla(${currentColor.h}, ${currentColor.s}%, ${l}%, 1.0)`;
+                ctx.fill();
+                ctx.strokeStyle = (face.type==='top'||face.type==='bot') ? "rgba(255,255,255,0.8)" : `hsla(${currentColor.h}, ${currentColor.s}%, ${l-10}%, 0.5)`;
+                ctx.lineWidth = (face.type==='top'||face.type==='bot') ? 4 : 1;
+                ctx.stroke();
+            });
+            requestAnimationFrame(draw);
+        }
+
+        function updateHearts() {
+            heartsContainer.innerHTML = '';
+            for (let i = 0; i < 8; i++) {
+                const span = document.createElement('span');
+                span.className = i < lives ? 'text-2xl heart-beat' : 'text-2xl grayscale opacity-20';
+                span.innerText = '❤️';
+                heartsContainer.appendChild(span);
+            }
+        }
+
+        function triggerFeedback(isCorrect) {
+            const icon = document.getElementById('feedback-icon');
+            icon.className = "text-[18rem] font-black opacity-0"; 
+            void icon.offsetWidth; 
+            if (isCorrect) { icon.innerText = "✅"; icon.classList.add('feedback-correct'); }
+            else { icon.innerText = "❌"; icon.classList.add('feedback-error'); }
+        }
+
+        function checkAnswer(s) {
+            if (!gameActive) return;
+            if (s === currentSides) {
+                combo++;
+                score += (isHardMode ? 50 : 20) + Math.min(combo, 10) * 5;
+                scoreContainer.classList.remove('score-pop');
+                void scoreContainer.offsetWidth;
+                scoreContainer.classList.add('score-pop');
+                triggerFeedback(true);
+            } else {
+                combo = 0; lives--;
+                updateHearts();
+                triggerFeedback(false);
+                if (lives <= 0) { setTimeout(() => endGame("生命值耗盡！"), 500); return; }
+            }
+            scoreEl.innerText = score;
+            updateComboEffect();
+            nextQuestion();
+        }
+
+        function updateComboEffect() {
+            bodyMain.className = "flex items-center justify-center p-4 transition-all duration-1000";
+            
+            if (combo >= 6) bodyMain.classList.add('bg-level-3');
+            else if (combo >= 4) bodyMain.classList.add('bg-level-2');
+            else if (combo >= 2) bodyMain.classList.add('bg-level-1');
+            else bodyMain.classList.add('bg-level-0');
+
+            if (combo >= 2) {
+                comboTag.classList.remove('hidden', 'combo-active', 'fever-shake-anim', 'bg-slate-300', 'bg-gradient-to-br', 'from-yellow-400', 'via-orange-500', 'to-red-600', 'from-red-600', 'to-orange-500', 'shadow-[0_0_30px_rgba(245,158,11,0.5)]', 'shadow-[0_0_50px_rgba(239,68,68,0.8)]');
+                void comboTag.offsetWidth;
+                comboTag.classList.add('combo-active');
+                comboCount.innerText = combo;
+
+                if (combo >= 6) {
+                    comboTag.className = "flex flex-col items-center justify-center px-10 py-3 rounded-2xl transition-all combo-active fever-shake-anim bg-gradient-to-br from-red-600 to-orange-500 text-white shadow-[0_0_50px_rgba(239,68,68,0.8)]";
+                    comboText.innerText = "FEVER MODE";
+                    comboText.classList.add('animate-pulse');
+                } else if (combo >= 4) {
+                    comboTag.className = "flex flex-col items-center justify-center px-9 py-2 rounded-2xl transition-all combo-active bg-gradient-to-br from-yellow-400 via-orange-500 to-red-600 text-white shadow-[0_0_30px_rgba(245,158,11,0.5)]";
+                    comboText.innerText = "GREAT!!";
+                    comboText.classList.remove('animate-pulse');
+                } else {
+                    comboTag.className = "flex flex-col items-center justify-center px-8 py-2 rounded-2xl transition-all combo-active bg-slate-300 text-slate-800 border-b-4 border-slate-400 shadow-lg";
+                    comboText.innerText = "COMBO";
+                }
+            } else {
+                comboTag.classList.add('hidden');
+            }
+        }
+
+        function nextQuestion() {
+            const old = currentSides;
+            do { currentSides = Math.floor(Math.random() * 6) + 3; } while (currentSides === old);
+            currentColor.h = Math.floor(Math.random() * 360);
+            
+            if (isHardMode) {
+                const base = 0.045;
+                const extra = 0.045;
+                rotSpeed = { 
+                    x: (Math.random()>0.5?1:-1)*(base+Math.random()*extra), 
+                    y: (Math.random()>0.5?1:-1)*(base+Math.random()*extra), 
+                    z: (Math.random()>0.5?1:-1)*(base+Math.random()*extra) 
+                };
+            } else {
+                const slowBase = 0.01;
+                const slowExtra = 0.01;
+                rotSpeed = { 
+                    x: (Math.random()-0.5) * slowExtra + (Math.random()>0.5?slowBase:-slowBase), 
+                    y: (Math.random()-0.5) * slowExtra + (Math.random()>0.5?slowBase:-slowBase), 
+                    z: (Math.random()-0.5) * slowExtra 
+                };
+            }
+            renderOptions();
+        }
+
+        function renderOptions() {
+            const grid = document.getElementById('options-grid');
+            grid.innerHTML = '';
+            const names = ["", "", "", "三角柱", "四角柱", "五角柱", "六角柱", "七角柱", "八角柱"];
+            [3, 4, 5, 6, 7, 8].forEach(s => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-choice bg-white text-slate-700 font-black py-2 rounded-2xl text-xl hover:bg-indigo-600 hover:text-white border-b-slate-200 hover:border-b-indigo-900 shadow-md transition-all flex items-center justify-center';
+                btn.innerText = names[s];
+                btn.onclick = () => checkAnswer(s);
+                grid.appendChild(btn);
+            });
+        }
+
+        function startGame(mode) {
+            isHardMode = mode === 'hard';
+            score = 0; combo = 0; timeLeft = 45; lives = 8; gameActive = true;
+            scoreEl.innerText = score; timerEl.innerText = timeLeft;
+            updateHearts();
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.classList.add('hidden'), 700);
+            updateComboEffect();
+            nextQuestion(); draw();
+            timerInterval = setInterval(() => {
+                timeLeft--; timerEl.innerText = timeLeft;
+                if (timeLeft <= 10) timerEl.classList.add('text-rose-500');
+                if (timeLeft <= 0) endGame("時間已到");
+            }, 1000);
+        }
+
+        function endGame(reason) {
+            gameActive = false; clearInterval(timerInterval);
+            document.getElementById('end-title').innerText = reason;
+            document.getElementById('final-score').innerText = score;
+            startScreen.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+            overlay.classList.remove('hidden');
+            
+            const rankData = getRankData();
+            const isTop = rankData.length < 5 || score > (rankData[rankData.length-1]?.score || 0);
+            document.getElementById('new-high-score-tag').classList.toggle('hidden', !isTop);
+            document.getElementById('name-input-box').classList.toggle('hidden', !isTop);
+            setTimeout(() => overlay.style.opacity = '1', 10);
+        }
+
+        // --- 排行榜邏輯 ---
+        const RANK_KEY = 'prism_quiz_ranks_v7';
+
+        function getRankData() { 
+            const data = localStorage.getItem(RANK_KEY); 
+            return data ? JSON.parse(data) : []; 
+        }
+
+        function saveScore() {
+            const nameInput = document.getElementById('player-name');
+            const name = nameInput.value.trim() || "匿名同學";
+            let rankData = getRankData();
+            rankData.push({ 
+                name, 
+                score, 
+                mode: isHardMode ? "困難" : "普通",
+                date: new Date().toLocaleDateString()
+            });
+            rankData.sort((a, b) => b.score - a.score);
+            localStorage.setItem(RANK_KEY, JSON.stringify(rankData.slice(0, 5)));
+            document.getElementById('name-input-box').classList.add('hidden');
+            document.getElementById('new-high-score-tag').innerText = "✅ 分數已儲存！";
+            nameInput.value = "";
+        }
+
+        function showRanking() {
+            const rankData = getRankData();
+            rankList.innerHTML = '';
+            if (rankData.length === 0) {
+                rankList.innerHTML = '<div class="text-center py-8 text-slate-400 font-bold">目前尚無紀錄</div>';
+            } else {
+                rankData.forEach((item, index) => {
+                    const row = document.createElement('div');
+                    row.className = `flex items-center justify-between p-4 rounded-2xl ${index === 0 ? 'bg-indigo-50 border-2 border-indigo-100' : 'bg-slate-50'}`;
+                    row.innerHTML = `
+                        <div class="flex items-center gap-4">
+                            <span class="w-8 h-8 flex items-center justify-center rounded-full ${index === 0 ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'} font-black">${index + 1}</span>
+                            <div>
+                                <p class="font-black text-slate-800">${item.name}</p>
+                                <p class="text-[10px] text-slate-400 font-bold uppercase">${item.mode}模式 · ${item.date}</p>
+                            </div>
+                        </div>
+                        <span class="text-2xl font-black text-indigo-600">${item.score}</span>
+                    `;
+                    rankList.appendChild(row);
+                });
+            }
+            rankModal.classList.remove('hidden');
+        }
+
+        function closeRanking() {
+            rankModal.classList.add('hidden');
+        }
+
+        window.onload = () => { initCanvas(); renderOptions(); };
+        window.onresize = initCanvas;
+        document.getElementById('start-btn-normal').onclick = () => startGame('normal');
+        document.getElementById('start-btn-hard').onclick = () => startGame('hard');
+        document.getElementById('restart-btn').onclick = () => startGame(isHardMode ? 'hard' : 'normal');
+        document.getElementById('save-score-btn').onclick = saveScore;
+        document.getElementById('back-to-title-btn').onclick = () => { resultScreen.classList.add('hidden'); startScreen.classList.remove('hidden'); };
+        
+        // 排行榜按鈕綁定
+        document.getElementById('show-rank-btn').onclick = showRanking;
+        document.getElementById('close-rank-btn').onclick = closeRanking;
+        document.getElementById('rank-confirm-btn').onclick = closeRanking;
+    </script>
+</body>
+</html>
