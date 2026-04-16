@@ -265,7 +265,7 @@
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
             const scale = 2.2;
-            if (isHardMode) moveTime += 0.012;
+            if (isHardMode) moveTime += 0.02;
 
             faces.forEach(face => {
                 const shading = getShading(face.pts);
@@ -362,16 +362,16 @@
             currentColor.h = Math.floor(Math.random() * 360);
             
             if (isHardMode) {
-                const base = 0.045;
-                const extra = 0.045;
+                const base = 0.08;
+                const extra = 0.08;
                 rotSpeed = { 
                     x: (Math.random()>0.5?1:-1)*(base+Math.random()*extra), 
                     y: (Math.random()>0.5?1:-1)*(base+Math.random()*extra), 
                     z: (Math.random()>0.5?1:-1)*(base+Math.random()*extra) 
                 };
             } else {
-                const slowBase = 0.01;
-                const slowExtra = 0.01;
+                const slowBase = 0.04;
+                const slowExtra = 0.04;
                 rotSpeed = { 
                     x: (Math.random()-0.5) * slowExtra + (Math.random()>0.5?slowBase:-slowBase), 
                     y: (Math.random()-0.5) * slowExtra + (Math.random()>0.5?slowBase:-slowBase), 
