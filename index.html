@@ -92,7 +92,7 @@
                 </div>
             </div>
 
-            <!-- 右側：計時與分數 -->
+            <!-- 右側：計時、分數與返回 -->
             <div class="flex items-center gap-4">
                 <div class="flex items-center gap-4 bg-slate-900 px-6 py-2 rounded-2xl shadow-xl border-b-4 border-slate-950">
                     <span class="text-slate-400 font-black text-xs uppercase tracking-widest">Time</span>
@@ -103,6 +103,13 @@
                     <span class="text-indigo-200 text-[10px] font-bold block leading-none mb-1">SCORE</span>
                     <p id="score" class="text-3xl font-black leading-none">0</p>
                 </div>
+
+                <!-- 新增：快速返回標題按鈕 -->
+                <button id="quick-exit-btn" class="ml-2 w-12 h-12 flex items-center justify-center bg-white border-2 border-slate-200 text-slate-400 hover:text-rose-500 hover:border-rose-200 hover:bg-rose-50 rounded-2xl transition-all shadow-sm group">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
             </div>
         </div>
 
@@ -121,16 +128,14 @@
             </div>
         </div>
 
-        <!-- 排行榜視窗 (隱藏) -->
+        <!-- 排行榜視窗 -->
         <div id="rank-modal" class="hidden absolute inset-0 z-[60] flex items-center justify-center p-8 bg-slate-900/60 backdrop-blur-md">
             <div class="bg-white rounded-[3rem] w-full max-w-lg p-10 shadow-2xl relative">
                 <button id="close-rank-btn" class="absolute top-6 right-8 text-3xl text-slate-300 hover:text-slate-500 font-black">✕</button>
                 <h2 class="text-3xl font-black text-slate-800 mb-8 flex items-center gap-3">
                     <span class="text-4xl">🏆</span> 歷史英雄榜
                 </h2>
-                <div id="rank-list" class="space-y-3 mb-8">
-                    <!-- 排名會生成在此 -->
-                </div>
+                <div id="rank-list" class="space-y-3 mb-8"></div>
                 <button id="rank-confirm-btn" class="w-full bg-slate-100 py-4 rounded-2xl font-black text-slate-500 hover:bg-slate-200 transition-all">關閉排行榜</button>
             </div>
         </div>
@@ -327,7 +332,6 @@
 
         function updateComboEffect() {
             bodyMain.className = "flex items-center justify-center p-4 transition-all duration-1000";
-            
             if (combo >= 6) bodyMain.classList.add('bg-level-3');
             else if (combo >= 4) bodyMain.classList.add('bg-level-2');
             else if (combo >= 2) bodyMain.classList.add('bg-level-1');
@@ -398,6 +402,7 @@
             isHardMode = mode === 'hard';
             score = 0; combo = 0; timeLeft = 45; lives = 8; gameActive = true;
             scoreEl.innerText = score; timerEl.innerText = timeLeft;
+            timerEl.classList.remove('text-rose-500');
             updateHearts();
             overlay.style.opacity = '0';
             setTimeout(() => overlay.classList.add('hidden'), 700);
@@ -408,6 +413,17 @@
                 if (timeLeft <= 10) timerEl.classList.add('text-rose-500');
                 if (timeLeft <= 0) endGame("時間已到");
             }, 1000);
+        }
+
+        // 直接返回標題的邏輯
+        function quitToTitle() {
+            gameActive = false;
+            clearInterval(timerInterval);
+            resultScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+            overlay.classList.remove('hidden');
+            overlay.style.opacity = '1';
+            bodyMain.className = "flex items-center justify-center p-4 transition-all duration-1000 bg-level-0";
         }
 
         function endGame(reason) {
@@ -427,7 +443,6 @@
 
         // --- 排行榜邏輯 ---
         const RANK_KEY = 'prism_quiz_ranks_v7';
-
         function getRankData() { 
             const data = localStorage.getItem(RANK_KEY); 
             return data ? JSON.parse(data) : []; 
@@ -475,9 +490,7 @@
             rankModal.classList.remove('hidden');
         }
 
-        function closeRanking() {
-            rankModal.classList.add('hidden');
-        }
+        function closeRanking() { rankModal.classList.add('hidden'); }
 
         window.onload = () => { initCanvas(); renderOptions(); };
         window.onresize = initCanvas;
@@ -485,9 +498,8 @@
         document.getElementById('start-btn-hard').onclick = () => startGame('hard');
         document.getElementById('restart-btn').onclick = () => startGame(isHardMode ? 'hard' : 'normal');
         document.getElementById('save-score-btn').onclick = saveScore;
-        document.getElementById('back-to-title-btn').onclick = () => { resultScreen.classList.add('hidden'); startScreen.classList.remove('hidden'); };
-        
-        // 排行榜按鈕綁定
+        document.getElementById('back-to-title-btn').onclick = quitToTitle;
+        document.getElementById('quick-exit-btn').onclick = quitToTitle;
         document.getElementById('show-rank-btn').onclick = showRanking;
         document.getElementById('close-rank-btn').onclick = closeRanking;
         document.getElementById('rank-confirm-btn').onclick = closeRanking;
